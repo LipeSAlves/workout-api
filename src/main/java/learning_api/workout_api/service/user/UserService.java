@@ -6,6 +6,8 @@ import learning_api.workout_api.domain.user.dto.UserUpdateDTO;
 import learning_api.workout_api.domain.user.entity.User;
 import learning_api.workout_api.domain.user.mapper.UserMapper;
 import learning_api.workout_api.repository.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.util.UUID;
 @Service
 public class UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private static final long RESET_TOKEN_VALIDITY_MINUTES = 15;
 
     @Autowired
@@ -28,6 +31,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private EmailService emailService;
 
     @Transactional
     public UserResponseDTO registerUser(UserRequestDTO dto) {
@@ -69,11 +75,11 @@ public class UserService {
             user.setTokenCreatedAt(LocalDateTime.now());
             userRepository.save(user);
 
-            System.out.println("\n--- NEW TOKEN GENERATED ---");
-            System.out.println("E-mail: " + email);
-            System.out.println("Token: " + user.getResetPasswordToken());
-            System.out.println("Expires within: " + RESET_TOKEN_VALIDITY_MINUTES + " minutes");
-            System.out.println("-------------------------\n");
+            try {
+                emailService.sendPasswordResetEmail(email, user.getResetPasswordToken());
+            } catch (Exception ex) {
+                log.error("Failed to send password reset e-mail to {}", email, ex);
+            }
         });
     }
 
