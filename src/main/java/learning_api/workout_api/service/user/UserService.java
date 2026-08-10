@@ -7,6 +7,7 @@ import learning_api.workout_api.domain.user.entity.User;
 import learning_api.workout_api.domain.user.mapper.UserMapper;
 import learning_api.workout_api.repository.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +18,16 @@ import java.util.UUID;
 @Service
 public class UserService {
 
+    private static final long RESET_TOKEN_VALIDITY_MINUTES = 15;
+
     @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserResponseDTO registerUser(UserRequestDTO dto) {
@@ -30,8 +36,7 @@ public class UserService {
         }
 
         User user = userMapper.toEntity(dto);
-
-        user.setPassword(dto.password());
+        user.setPassword(passwordEncoder.encode(dto.password()));
 
         User savedUser = userRepository.save(user);
         return userMapper.toResponseDTO(savedUser);
@@ -42,7 +47,6 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Atualiza apenas o que foi enviado
         if (dto.name() != null) user.setName(dto.name());
         if (dto.email() != null) user.setEmail(dto.email());
         if (dto.fitnessLevel() != null) user.setFitnessLevel(dto.fitnessLevel());
@@ -60,45 +64,39 @@ public class UserService {
 
     @Transactional
     public void generateNewToken(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+        userRepository.findByEmail(email).ifPresent(user -> {
+            user.setResetPasswordToken(UUID.randomUUID().toString());
+            user.setTokenCreatedAt(LocalDateTime.now());
+            userRepository.save(user);
 
-        user.setResetPasswordToken(UUID.randomUUID().toString());
-        user.setTokenCreatedAt(LocalDateTime.now());
-
-        userRepository.save(user);
-
-        // For ease of use, we'll print the token to the terminal in place of having it be sent to an e-mail (intended future feature) for now.
-        System.out.println("\n--- NEW TOKEN GENERATED ---");
-        System.out.println("E-mail: " + email);
-        System.out.println("Token: " + user.getResetPasswordToken());
-        System.out.println("Expires within: 15 minutes");
-        System.out.println("-------------------------\n");
+            System.out.println("\n--- NEW TOKEN GENERATED ---");
+            System.out.println("E-mail: " + email);
+            System.out.println("Token: " + user.getResetPasswordToken());
+            System.out.println("Expires within: " + RESET_TOKEN_VALIDITY_MINUTES + " minutes");
+            System.out.println("-------------------------\n");
+        });
     }
 
     public boolean isTokenExpired(User user) {
         if (user.getResetPasswordToken() == null || user.getTokenCreatedAt() == null) {
             return true;
         }
-        LocalDateTime now = LocalDateTime.now();
-        long secondsBetween = Duration.between(user.getTokenCreatedAt(), now).toSeconds();
-        return secondsBetween > 60;
+        long minutesBetween = Duration.between(user.getTokenCreatedAt(), LocalDateTime.now()).toMinutes();
+        return minutesBetween >= RESET_TOKEN_VALIDITY_MINUTES;
     }
 
     @Transactional
     public void updatePassword(String token, String newPassword) {
-        System.out.println("Looking up user with token: [" + token + "]");
-        User user = userRepository.findByResetPasswordToken(token).orElseThrow(() -> {
-            System.out.println("Error: token did not match any user.");
-            return new RuntimeException("Invalid token");
-        });
+        User user = userRepository.findByResetPasswordToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (isTokenExpired(user)) {
             throw new RuntimeException("Token expired, 15 minutes have passed since it has been created.");
         }
-        user.setPassword(newPassword);
-        user.setResetPasswordToken(null);
-        userRepository.save(user);
 
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setResetPasswordToken(null);
+        user.setTokenCreatedAt(null);
+        userRepository.save(user);
     }
 }
