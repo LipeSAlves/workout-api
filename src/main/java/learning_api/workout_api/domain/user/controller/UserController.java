@@ -30,7 +30,7 @@ public class UserController {
     public ResponseEntity<String> forgotPassword(@RequestBody @Valid ForgotPasswordRequestDTO dto) {
         userService.generateNewToken(dto.email());
 
-        return ResponseEntity.ok("If that e-mail is registered, a new token has been generated and can be used to change your password. Remember: your token lasts 15 minutes.");
+        return ResponseEntity.ok("If that e-mail is registered, a password reset e-mail has been sent. The reset token is valid for 15 minutes.");
     }
 
     @Operation(summary = "Change a password", description = "Checks if a matching change password token is found in the database and if its 15-minute expiration limit hasn't been breached, in which case the user's password field is overwritten with the new password ")
