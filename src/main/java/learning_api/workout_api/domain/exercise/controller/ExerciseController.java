@@ -6,13 +6,13 @@ import jakarta.validation.Valid;
 import learning_api.workout_api.domain.exercise.dto.ExerciseRequestDTO;
 import learning_api.workout_api.domain.exercise.dto.ExerciseResponseDTO;
 import learning_api.workout_api.domain.exercise.dto.ExerciseUpdateDTO;
-import learning_api.workout_api.repository.exercise.ExerciseRepository;
 import learning_api.workout_api.service.exercise.ExerciseService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "Exercises", description = "Manage http requests that call for creating, updating and deleting exercises, as well as operations meant to disclose exercise information.")
 @RestController
@@ -22,14 +22,10 @@ public class ExerciseController {
 
     private final ExerciseService exerciseService;
 
-    @Autowired
-    private ExerciseRepository repository;
-
     @Operation(summary = "list all exercises", description = "returns a list comprised of all exercises currently saved in the database")
     @GetMapping
-    public ResponseEntity getAllExercises(){
-        var allExercises = repository.findAll();
-        return ResponseEntity.ok(allExercises);
+    public ResponseEntity<List<ExerciseResponseDTO>> getAllExercises() {
+        return ResponseEntity.ok(exerciseService.findAll());
     }
 
     @Operation(summary = "list a specific exercise", description = "returns one exercise saved in the database, identified using the provided request data")

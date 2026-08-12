@@ -40,6 +40,36 @@ class ExerciseIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void shouldGetExerciseById() throws Exception {
+        var createResult = mockMvc.perform(post("/exercises")
+                        .header("Authorization", bearerToken(token))
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "Remada curvada",
+                                "description", "Exercício para costas"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        long exerciseId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(get("/exercises/" + exerciseId)
+                        .header("Authorization", bearerToken(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(exerciseId))
+                .andExpect(jsonPath("$.name").value("Remada curvada"))
+                .andExpect(jsonPath("$.description").value("Exercício para costas"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenExerciseNotFound() throws Exception {
+        mockMvc.perform(get("/exercises/99999")
+                        .header("Authorization", bearerToken(token)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Exercise not found"));
+    }
+
+    @Test
     void shouldListExercises() throws Exception {
         mockMvc.perform(post("/exercises")
                         .header("Authorization", bearerToken(token))
