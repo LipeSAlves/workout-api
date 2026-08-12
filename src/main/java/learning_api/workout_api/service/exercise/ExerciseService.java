@@ -8,7 +8,6 @@ import learning_api.workout_api.domain.exercise.mapper.ExerciseMapper;
 import learning_api.workout_api.domain.workoutplan.entity.WorkoutPlan;
 import learning_api.workout_api.repository.exercise.ExerciseRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,23 +15,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-
 public class ExerciseService {
 
-    @Autowired
     private final ExerciseRepository exerciseRepository;
-
     private final ExerciseMapper exerciseMapper;
 
-    private Exercise createExerciseFromDTO (ExerciseRequestDTO dto) {
-        Exercise exercise = new Exercise();
-        exercise.setName(dto.name());
-        exercise.setDescription(dto.description());
-        return exercise;
-    }
-
-    public ExerciseResponseDTO saveExercise (ExerciseRequestDTO dto) {
-        Exercise exercise = createExerciseFromDTO(dto);
+    public ExerciseResponseDTO saveExercise(ExerciseRequestDTO dto) {
+        Exercise exercise = exerciseMapper.toEntity(dto);
         Exercise saved = exerciseRepository.save(exercise);
         return exerciseMapper.toResponseDTO(saved);
     }
